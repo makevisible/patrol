@@ -1,5 +1,6 @@
 ## Unreleased
 
+- Add Linux desktop support (Dart-only, native actions throw `UnsupportedError`). (#3272)
 - Add `$.entrypointArgs` with the Dart entrypoint arguments the native side of the app passes to
   the test bundle (`dartEntrypointArgs` on Android, `entrypointArgs` on iOS and macOS). Needs a
   `patrol_cli` release that includes this change. (#3366)
