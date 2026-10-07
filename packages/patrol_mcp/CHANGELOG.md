@@ -1,3 +1,7 @@
+## Unreleased
+
+- Recognize Linux desktop devices reported by `flutter devices`. (#3272)
+
 ## 0.2.2
 
 - Fix the `devices` tool and device auto-selection in `run` on Windows (#3298).

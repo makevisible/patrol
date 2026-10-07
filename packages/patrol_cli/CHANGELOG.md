@@ -1,3 +1,7 @@
+## Unreleased
+
+- Add Linux desktop support to `patrol build`, `patrol test` and `patrol develop` (Dart-only). (#3272)
+
 ## 4.10.0
 
 - Read coverage from runs with the test orchestrator's `clearPackageData:true` in
