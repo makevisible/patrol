@@ -1,3 +1,7 @@
+## Unreleased
+
+- Add `isLinux` getter to `PatrolTester`. (#3272)
+
 ## 3.7.1
 
 - Fix the duration in the timeout exception that `dragUntilExists()` and `dragUntilVisible()` throw after running out of iterations: it now reports the time spent dragging instead of `settleBetweenScrollsTimeout`. (#3300)

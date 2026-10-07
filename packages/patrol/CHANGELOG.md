@@ -1,3 +1,7 @@
+## Unreleased
+
+- Add Linux desktop support (Dart-only, native actions throw `UnsupportedError`). (#3272)
+
 ## 4.12.0
 
 - Add Android code coverage for runs with the test orchestrator's `clearPackageData:true` on
