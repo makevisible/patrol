@@ -15,6 +15,7 @@ import 'package:patrol_cli/src/crossplatform/video_recording_config.dart';
 import 'package:patrol_cli/src/dart_defines_reader.dart';
 import 'package:patrol_cli/src/devices.dart';
 import 'package:patrol_cli/src/ios/ios_test_backend.dart';
+import 'package:patrol_cli/src/linux/linux_test_backend.dart';
 import 'package:patrol_cli/src/macos/macos_test_backend.dart';
 import 'package:patrol_cli/src/pubspec_reader.dart';
 import 'package:patrol_cli/src/runner/patrol_command.dart';
@@ -34,6 +35,7 @@ class TestCommand extends PatrolCommand {
     required this._iosTestBackend,
     required MacOSTestBackend macOSTestBackend,
     required this._webTestBackend,
+    required this._linuxTestBackend,
     required this._coverageTool,
     required this._webCoverageTool,
     required this._analytics,
@@ -78,6 +80,7 @@ class TestCommand extends PatrolCommand {
   final IOSTestBackend _iosTestBackend;
   final MacOSTestBackend _macosTestBackend;
   final WebTestBackend _webTestBackend;
+  final LinuxTestBackend _linuxTestBackend;
   final CoverageTool _coverageTool;
   final WebCoverageTool _webCoverageTool;
 
@@ -219,6 +222,13 @@ See https://github.com/leancodepl/patrol/issues/1316 to learn more.
     final noTreeShakeIcons = boolArg('no-tree-shake-icons');
     final coverageEnabled = boolArg('coverage');
 
+    // Coverage collection finds the Dart VM service through `flutter logs`,
+    // which doesn't support Linux desktop.
+    if (coverageEnabled && device.targetPlatform == TargetPlatform.linux) {
+      _logger.err('Coverage is not supported on Linux yet.');
+      return 1;
+    }
+
     final coverageMode = switch ((coverageEnabled, isWeb)) {
       (false, _) => CoverageMode.none,
       (true, false) => CoverageMode.vm,
@@ -297,7 +307,9 @@ See https://github.com/leancodepl/patrol/issues/1316 to learn more.
       TargetPlatform.android => androidFlavor,
       TargetPlatform.iOS => iosFlavor,
       TargetPlatform.macOS => macosFlavor,
-      _ => null,
+      // Linux has no pubspec config, so the flavor comes only from --flavor.
+      TargetPlatform.linux => stringArg('flavor'),
+      TargetPlatform.web => null,
     };
 
     final flutterOpts = FlutterAppOptions(
@@ -339,6 +351,12 @@ See https://github.com/leancodepl/patrol/issues/1316 to learn more.
       flutter: flutterOpts,
       scheme: buildMode.createScheme(macosFlavor),
       configuration: buildMode.createConfiguration(macosFlavor),
+      appServerPort: super.appServerPort,
+      testServerPort: super.testServerPort,
+    );
+
+    final linuxOpts = LinuxAppOptions(
+      flutter: flutterOpts,
       appServerPort: super.appServerPort,
       testServerPort: super.testServerPort,
     );
@@ -392,7 +410,7 @@ See https://github.com/leancodepl/patrol/issues/1316 to learn more.
 
     // No need to build web app for testing. It's done in the execute method.
     if (device.targetPlatform != TargetPlatform.web) {
-      await _build(androidOpts, iosOpts, macosOpts, webOpts, device);
+      await _build(androidOpts, iosOpts, macosOpts, webOpts, linuxOpts, device);
     }
 
     await _preExecute(androidOpts, iosOpts, macosOpts, device, uninstall);
@@ -417,6 +435,7 @@ See https://github.com/leancodepl/patrol/issues/1316 to learn more.
       iosOpts,
       macosOpts,
       webOpts,
+      linuxOpts,
       uninstall: uninstall,
       device: device,
       showFlutterLogs: boolArg('show-flutter-logs'),
@@ -473,7 +492,8 @@ See https://github.com/leancodepl/patrol/issues/1316 to learn more.
         }
       case TargetPlatform.macOS:
       case TargetPlatform.web:
-      // No uninstall needed for macOS and web
+      case TargetPlatform.linux:
+      // No uninstall needed for macOS, web and Linux
     }
 
     try {
@@ -488,6 +508,7 @@ See https://github.com/leancodepl/patrol/issues/1316 to learn more.
     IOSAppOptions iosOpts,
     MacOSAppOptions macosOpts,
     WebAppOptions webOpts,
+    LinuxAppOptions linuxOpts,
     Device device,
   ) async {
     final buildAction = switch (device.targetPlatform) {
@@ -495,6 +516,7 @@ See https://github.com/leancodepl/patrol/issues/1316 to learn more.
       TargetPlatform.macOS => () => _macosTestBackend.build(macosOpts),
       TargetPlatform.iOS => () => _iosTestBackend.build(iosOpts),
       TargetPlatform.web => () => _webTestBackend.build(webOpts),
+      TargetPlatform.linux => () => _linuxTestBackend.build(linuxOpts),
     };
 
     try {
@@ -513,7 +535,8 @@ See https://github.com/leancodepl/patrol/issues/1316 to learn more.
     AndroidAppOptions android,
     IOSAppOptions ios,
     MacOSAppOptions macos,
-    WebAppOptions web, {
+    WebAppOptions web,
+    LinuxAppOptions linux, {
     required bool uninstall,
     required Device device,
     required bool showFlutterLogs,
@@ -571,6 +594,14 @@ See https://github.com/leancodepl/patrol/issues/1316 to learn more.
       case TargetPlatform.web:
         action = () => _webTestBackend.execute(
           web,
+          device,
+          showFlutterLogs: showFlutterLogs,
+          hideTestSteps: hideTestSteps,
+          clearTestSteps: clearTestSteps,
+        );
+      case TargetPlatform.linux:
+        action = () => _linuxTestBackend.execute(
+          linux,
           device,
           showFlutterLogs: showFlutterLogs,
           hideTestSteps: hideTestSteps,

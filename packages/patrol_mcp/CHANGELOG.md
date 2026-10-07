@@ -1,5 +1,6 @@
 ## Unreleased
 
+- Recognize Linux desktop devices reported by `flutter devices`. (#3272)
 - Requires `patrol_cli` 4.10.0-dev.1 or newer, and with it Flutter 3.47.0 or newer for web develop.
 - Support web develop sessions: the `devices` tool now lists browsers (e.g. `chrome`) and `run`
   accepts them as `device`. Web is never auto-selected, since a browser is rarely what "run the

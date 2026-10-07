@@ -16,6 +16,7 @@ import 'package:patrol_cli/src/crossplatform/video_recording_config.dart';
 import 'package:patrol_cli/src/dart_defines_reader.dart';
 import 'package:patrol_cli/src/devices.dart';
 import 'package:patrol_cli/src/ios/ios_test_backend.dart';
+import 'package:patrol_cli/src/linux/linux_test_backend.dart';
 import 'package:patrol_cli/src/macos/macos_test_backend.dart' hide BuildMode;
 import 'package:patrol_cli/src/pubspec_reader.dart';
 import 'package:patrol_cli/src/runner/flutter_command.dart';
@@ -70,7 +71,7 @@ class TestCompletionResult {
 bool shouldAttachUsingUrl(Device device) => switch (device.targetPlatform) {
   TargetPlatform.macOS => true,
   TargetPlatform.iOS => !device.real,
-  TargetPlatform.android || TargetPlatform.web => false,
+  TargetPlatform.android || TargetPlatform.web || TargetPlatform.linux => false,
 };
 
 /// Orchestrates a patrol develop session.
@@ -89,6 +90,7 @@ class DevelopService {
     required this._iosTestBackend,
     required this._macosTestBackend,
     required this._webTestBackend,
+    required this._linuxTestBackend,
     required this._flutterTool,
     required this._logger,
     required this._stdin,
@@ -113,6 +115,7 @@ class DevelopService {
   final IOSTestBackend _iosTestBackend;
   final MacOSTestBackend _macosTestBackend;
   final WebTestBackend _webTestBackend;
+  final LinuxTestBackend _linuxTestBackend;
   final FlutterTool _flutterTool;
   final Logger _logger;
   final Stream<List<int>> _stdin;
@@ -302,7 +305,9 @@ class DevelopService {
       TargetPlatform.android => androidFlavor,
       TargetPlatform.iOS => iosFlavor,
       TargetPlatform.macOS => iosFlavor,
-      _ => null,
+      // Linux has no pubspec config, so the flavor comes only from --flavor.
+      TargetPlatform.linux => options.flavor,
+      TargetPlatform.web => null,
     };
 
     final flutterOpts = FlutterAppOptions(
@@ -352,6 +357,12 @@ class DevelopService {
 
     final webOpts = WebAppOptions(flutter: flutterOpts);
 
+    final linuxOpts = LinuxAppOptions(
+      flutter: flutterOpts,
+      appServerPort: options.appServerPort,
+      testServerPort: options.testServerPort,
+    );
+
     try {
       if (prebuiltApksDir == null) {
         await _build(androidOpts, iosOpts, macosOpts, webOpts, device);
@@ -378,6 +389,7 @@ class DevelopService {
         iosOpts,
         macosOpts,
         webOpts,
+        linuxOpts,
         uninstall: options.uninstall,
         device: device,
         openDevtools: options.openDevtools,
@@ -408,6 +420,8 @@ class DevelopService {
       TargetPlatform.iOS => () => _iosTestBackend.build(iosOpts),
       TargetPlatform.macOS => () => _macosTestBackend.build(macosOpts),
       TargetPlatform.web => () => _webTestBackend.buildForDevelop(webOpts),
+      // `flutter run` builds the app in develop.
+      TargetPlatform.linux => Future<void>.value,
     };
 
     try {
@@ -450,6 +464,7 @@ class DevelopService {
         }
       case TargetPlatform.macOS:
       case TargetPlatform.web:
+      case TargetPlatform.linux:
     }
 
     try {
@@ -485,7 +500,8 @@ class DevelopService {
     AndroidAppOptions android,
     IOSAppOptions iosOpts,
     MacOSAppOptions macos,
-    WebAppOptions web, {
+    WebAppOptions web,
+    LinuxAppOptions linux, {
     required bool uninstall,
     required Device device,
     required bool openDevtools,
@@ -594,6 +610,17 @@ class DevelopService {
           onLogEntry: onLogEntry,
           openDevtools: openDevtools,
         );
+      case TargetPlatform.linux:
+        action = () => _linuxTestBackend.develop(
+          _flutterTool,
+          linux,
+          device,
+          showFlutterLogs: showFlutterLogs,
+          hideTestSteps: hideTestSteps,
+          clearTestSteps: clearTestSteps,
+          onLogEntry: onLogEntry,
+          stdin: _stdin,
+        );
     }
 
     try {
@@ -640,7 +667,9 @@ class DevelopService {
         ),
       );
 
-      if (device.targetPlatform != TargetPlatform.web) {
+      // Web and Linux run the app with `flutter run`, which hot restarts it.
+      if (device.targetPlatform
+          case != TargetPlatform.web && != TargetPlatform.linux) {
         final attached = _flutterTool.attachForHotRestart(
           flutterCommand: flutterOpts.command,
           deviceId: device.id,
