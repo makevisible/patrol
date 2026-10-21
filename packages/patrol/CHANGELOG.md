@@ -1,5 +1,8 @@
 ## Unreleased
 
+- Speed up `getNativeViews` with a selector on iOS: each matched element is read with one
+  `XCUIElement.snapshot()` instead of one accessibility request per property and child, and
+  elements that no longer match are skipped instead of failing the test.
 - Add Linux desktop support (Dart-only, native actions throw `UnsupportedError`). (#3272)
 - Add macOS platform automation via `$.platform.macos`:
     - `tap` / `waitUntilVisible` for native views
